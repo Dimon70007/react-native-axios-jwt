@@ -24,11 +24,15 @@
     "jest-environment-jsdom": "^29.0.3",
     "jsonwebtoken": "^8.5.1",
     "prettier": "^2.2.1",
+    "react-native": "0.72.10",
+    "react-native-keychain": "9.0.0",
     "ts-jest": "^29.0.1",
     "typescript": "^4.4.4"
   },
   "peerDependencies": {
+    "react-native": "*",
     "@react-native-async-storage/async-storage": "*",
+    "react-native-keychain": "^9.0.0",
     "axios": "*"
   },
   "dependencies": {

@@ -1,17 +1,20 @@
 import jwtDecode, { JwtPayload } from 'jwt-decode'
-
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import Keychain, { Options as KeychainOptions } from 'react-native-keychain'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // a little time before expiration to try refresh (seconds)
 const EXPIRE_FUDGE = 10
-export const STORAGE_KEY = `auth-tokens-${process.env.NODE_ENV}`
+export const STORAGE_KEY = `dfhgsdf-${process.env.NODE_ENV}` // secure field name)))
+const TOKEN_ID = `ojhaslidfgu`
+const ASYNC_KC_CONFIG_ID = `lhkagsdfljk`
 
 type Token = string
 export interface AuthTokens {
   accessToken: Token
   refreshToken: Token
 }
+
 
 // EXPORTS
 
@@ -31,8 +34,10 @@ export const isLoggedIn = async (): Promise<boolean> => {
  * @param {AuthTokens} tokens - Access and Refresh tokens
  * @returns {Promise}
  */
-export const setAuthTokens = (tokens: AuthTokens): Promise<void> =>
-  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tokens))
+export const setAuthTokens = async (tokens: AuthTokens, keychainOptions?: KeychainOptions): Promise<void> => {
+  keychainOptions && await AsyncStorage.setItem(ASYNC_KC_CONFIG_ID, JSON.stringify(keychainOptions));
+  await Keychain.setInternetCredentials(STORAGE_KEY, TOKEN_ID, JSON.stringify(tokens), keychainOptions)  
+}
 
 /**
  * Sets the access token
@@ -54,7 +59,7 @@ export const setAccessToken = async (token: Token): Promise<void> => {
  * @async
  * @returns {Promise}
  */
-export const clearAuthTokens = (): Promise<void> => AsyncStorage.removeItem(STORAGE_KEY)
+export const clearAuthTokens = async (): Promise<void> => Keychain.resetInternetCredentials(STORAGE_KEY)
 
 /**
  * Returns the stored refresh token
@@ -118,8 +123,14 @@ export const applyAuthTokenInterceptor = (axios: AxiosInstance, config: AuthToke
  * @async
  * @returns {Promise<AuthTokens>} Object containing refresh and access tokens
  */
-const getAuthTokens = async (): Promise<AuthTokens | undefined> => {
-  const rawTokens = await AsyncStorage.getItem(STORAGE_KEY)
+const getAuthTokens = async (keychainOptions?: KeychainOptions): Promise<AuthTokens | undefined> => {
+  let kcConfig = keychainOptions;
+  if(!kcConfig) {
+    const cfgString = await AsyncStorage.getItem(ASYNC_KC_CONFIG_ID)
+    kcConfig = cfgString ? JSON.parse(cfgString) : undefined
+  }
+  const kcResult = await Keychain.getInternetCredentials(STORAGE_KEY, kcConfig)
+  const rawTokens = kcResult && kcResult.password
   if (!rawTokens) return
 
   try {
@@ -195,7 +206,7 @@ const refreshToken = async (requestRefresh: TokenRefreshRequest): Promise<Token>
     const status = error.response?.status
     if (status === 401 || status === 422) {
       // The refresh token is invalid so remove the stored tokens
-      await AsyncStorage.removeItem(STORAGE_KEY)
+      await clearAuthTokens()
       error.message = `Got ${status} on token refresh; clearing both auth tokens`
     }
 
